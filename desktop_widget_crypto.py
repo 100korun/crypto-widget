@@ -7,7 +7,7 @@ import random
 API_URL = "https://api.coingecko.com/api/v3/simple/price"
 DEFAULT_CRYPTO = [
     "bitcoin", "ethereum", "dogecoin", "ripple", "litecoin",
-    "polkadot", "cardano", "solana", "tron", "monero", "shiba-inu"
+    "polkadot", "cardano", "solana", "tron", "monero", "XRP"
 ]
 
 # Примерные данные
@@ -22,7 +22,7 @@ DEFAULT_DATA = {
     "solana": {"usd": 20, "change": -2.62, "symbol": "SOL"},
     "tron": {"usd": 0.08, "change": 1.97, "symbol": "TRO"},
     "monero": {"usd": 150, "change": 3.06, "symbol": "MON"},
-    "shiba-inu": {"usd": 0.00001, "change": -4.46, "symbol": "SHI"}
+    "shiba-inu": {"usd": 1, "change": -4.46, "symbol": "XRP"}
 }
 
 
