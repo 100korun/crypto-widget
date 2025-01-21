@@ -1,7 +1,8 @@
 import tkinter as tk
-import time  # Добавлено для использования time.time()
+import time
 import requests
 import random
+import platform
 
 
 API_URL = "https://api.coingecko.com/api/v3/simple/price"
@@ -10,7 +11,6 @@ DEFAULT_CRYPTO = [
     "polkadot", "cardano", "solana", "tron", "monero", "XRP"
 ]
 
-# Примерные данные
 DEFAULT_DATA = {
     "bitcoin": {"usd": 20000, "change": 2.87, "symbol": "BIT"},
     "ethereum": {"usd": 1500, "change": 0.57, "symbol": "ETH"},
@@ -29,26 +29,39 @@ DEFAULT_DATA = {
 class CryptoWidget:
     def __init__(self, root):
         self.root = root
+        self.platform = platform.system()  # Detect OS
         self.root.title("Crypto Widget")
         self.root.configure(bg="#1e1e1e")
 
-        # Убираем заголовок окна
-        self.root.overrideredirect(True)
+        # Remove title bar for Windows
+        if self.platform == "Windows":
+            self.root.overrideredirect(True)
 
-        # Холст для отрисовки
+        # Canvas for rendering
         self.canvas = tk.Canvas(root, bg="#1e1e1e", highlightthickness=0)
         self.canvas.pack(fill="both", expand=True)
 
-        # Метка для таймера обновления
+        # Label for update timer
         self.timer_label = tk.Label(root, text="", bg="#1e1e1e", fg="white", font=("Arial", 12, "bold"))
         self.timer_label.pack(side="bottom", pady=5)
 
-        # Данные
+        # Version label
+        self.version_label = tk.Label(
+            root,
+            text="v0.1",
+            bg="#1e1e1e",
+            fg="white",
+            font=("Arial", 10, "bold"),
+            anchor="w"
+        )
+        self.version_label.place(relx=0.01, rely=0.98, anchor="sw")  # Bottom-left corner
+
+        # Data
         self.crypto_data = DEFAULT_DATA.copy()
         self.last_update = 0
-        self.update_interval = 30  # Интервал обновления данных (в секундах)
+        self.update_interval = 30  # Update interval (seconds)
         self.remaining_time = self.update_interval
-        self.scale = 1.0  # Масштаб блоков
+        self.scale = 1.0
 
         self.update_prices()
         self.update_timer()
@@ -56,79 +69,84 @@ class CryptoWidget:
         self.root.bind("<Configure>", self.on_resize)
         self.canvas.bind("<MouseWheel>", self.zoom)
 
-        # Создание контекстного меню
+        # Create a context menu
         self.context_menu = tk.Menu(self.root, tearoff=0)
-        self.context_menu.add_command(label="Закрыть", command=self.root.quit)
+        self.context_menu.add_command(label="Close", command=self.root.quit)
 
-        # Обработчик правой кнопки мыши
-        self.canvas.bind("<Button-3>", self.show_context_menu)
+        # Handle right-click for the platform
+        right_click = "<Button-2>" if self.platform == "Darwin" else "<Button-3>"
+        self.canvas.bind(right_click, self.show_context_menu)
 
-        # Перемещение окна
+        # Enable window dragging on both platforms
         self.canvas.bind("<ButtonPress-1>", self.start_move)
         self.canvas.bind("<B1-Motion>", self.move_window)
 
-        # Начальные координаты для перемещения
+        # Initial movement coordinates
         self.x = 0
         self.y = 0
 
     def fetch_crypto_prices(self):
-        """Получить данные о криптовалютах с обработкой ошибок."""
+        """Fetch cryptocurrency data with error handling."""
         if time.time() - self.last_update < self.update_interval:
-            print("Использование кэшированных данных.")
+            print("Using cached data.")
             return self.crypto_data
 
         try:
-            print("Запрос данных из API...")
+            print("Fetching data from API...")
             response = requests.get(API_URL, params={"ids": ",".join(DEFAULT_CRYPTO), "vs_currencies": "usd"})
             response.raise_for_status()
             data = response.json()
 
-            # Генерация случайных изменений
+            # Generate random changes
             for crypto in data:
                 data[crypto]["change"] = random.uniform(-5, 5)
                 data[crypto]["symbol"] = crypto[:3].upper()
             self.crypto_data = data
             self.last_update = time.time()
-            self.remaining_time = self.update_interval  # Сброс таймера
-            print("Данные успешно получены:", data)
+            self.remaining_time = self.update_interval
+            print("Data fetched successfully:", data)
         except requests.exceptions.HTTPError as e:
-            print(f"HTTP ошибка: {e}")
+            print(f"HTTP error: {e}")
         except Exception as e:
-            print(f"Ошибка: {e}")
+            print(f"Error: {e}")
 
         return self.crypto_data
 
     def update_prices(self):
-        """Обновить данные о ценах и перерисовать блоки."""
+        """Update price data and redraw blocks."""
         self.fetch_crypto_prices()
         self.render_squares()
         self.root.after(self.update_interval * 1000, self.update_prices)
 
     def update_timer(self):
-        """Обновить таймер обратного отсчёта."""
+        """Update the countdown timer."""
         if self.remaining_time > 0:
             self.remaining_time -= 1
-            self.timer_label.config(text=f"Обновление через: {self.remaining_time} сек.")
+            self.timer_label.config(text=f"Next update in: {self.remaining_time} seconds")
         else:
-            self.timer_label.config(text="Обновление данных...")
+            self.timer_label.config(text="Updating data...")
         self.root.after(1000, self.update_timer)
 
     def render_squares(self):
-        """Отобразить блоки на основе данных в виде мозаики."""
+        """Display data as a grid of blocks."""
         self.canvas.delete("all")
         if not self.crypto_data:
-            print("Нет данных для отображения.")
+            print("No data to display.")
             return
 
-        # Размеры окна
         width = self.canvas.winfo_width()
         height = self.canvas.winfo_height()
 
-        # Количество криптовалют
+        # Debugging canvas size
+        print(f"Canvas size: width={width}, height={height}")
+
+        if width == 1 or height == 1:
+            print("Canvas not ready, skipping render.")
+            return  # Skip rendering if dimensions are not ready
+
         num_crypto = len(self.crypto_data)
         grid_size = int(num_crypto ** 0.5) + (1 if (num_crypto ** 0.5) % 1 != 0 else 0)
 
-        # Размер ячейки
         cell_width = width / grid_size
         cell_height = height / grid_size
 
@@ -137,25 +155,18 @@ class CryptoWidget:
             change = data["change"]
             symbol = data["symbol"]
 
-            # Позиция в сетке
             row = i // grid_size
             col = i % grid_size
 
-            # Координаты ячейки
             x1 = col * cell_width
             y1 = row * cell_height
             x2 = x1 + cell_width
             y2 = y1 + cell_height
 
-            # Цвет на основе изменения
             color = "green" if change >= 0 else "red"
 
-            # Рисование блока
-            self.canvas.create_rectangle(
-                x1, y1, x2, y2, fill=color, outline="#1e1e1e"
-            )
+            self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="#1e1e1e")
 
-            # Адаптивный текст
             text_size = int(min(cell_height / 5, cell_width / len(symbol), 20))
             self.canvas.create_text(
                 (x1 + x2) / 2, y1 + cell_height / 4,
@@ -177,28 +188,28 @@ class CryptoWidget:
             )
 
     def on_resize(self, event):
-        """Обработать изменение размеров окна."""
+        """Handle window resizing."""
         self.render_squares()
 
     def zoom(self, event):
-        """Обработать приближение/отдаление через колесико мыши."""
+        """Handle zooming with mouse wheel."""
         if event.delta > 0:
-            self.scale *= 1.1  # Увеличение масштаба
+            self.scale *= 1.1
         elif event.delta < 0:
-            self.scale /= 1.1  # Уменьшение масштаба
+            self.scale /= 1.1
         self.render_squares()
 
     def show_context_menu(self, event):
-        """Показать контекстное меню при правом клике мыши."""
+        """Show context menu on right-click."""
         self.context_menu.post(event.x_root, event.y_root)
 
     def start_move(self, event):
-        """Запомнить начальную позицию для перемещения окна."""
+        """Start window movement."""
         self.x = event.x
         self.y = event.y
 
     def move_window(self, event):
-        """Переместить окно при движении мыши."""
+        """Move the window."""
         delta_x = event.x - self.x
         delta_y = event.y - self.y
         new_x = self.root.winfo_x() + delta_x
@@ -206,8 +217,8 @@ class CryptoWidget:
         self.root.geometry(f"+{new_x}+{new_y}")
 
 
-# Запуск программы
 if __name__ == "__main__":
     root = tk.Tk()
     widget = CryptoWidget(root)
     root.mainloop()
+
