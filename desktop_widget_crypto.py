@@ -47,7 +47,7 @@ class CryptoWidget:
         # Version label
         self.version_label = tk.Label(
             root,
-            text="v0.3",
+            text="v0.2",
             bg="#1e1e1e",
             fg="white",
             font=("Arial", 10, "bold"),
